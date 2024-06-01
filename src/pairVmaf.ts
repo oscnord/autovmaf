@@ -24,7 +24,6 @@ export async function pairVmafWithResolutionAndBitrate(
     {
       resolution: Resolution;
       vmaf: number;
-      cpuTime?: { realTime: number; cpuTime: number };
       vmafFile: string;
     }[]
   >();
@@ -36,11 +35,6 @@ export async function pairVmafWithResolutionAndBitrate(
         vmafs.map((vmaf) => path.resolve(directoryWithVmafFiles, vmaf.filename))
       )
     : undefined;
-  const cpuTimes:
-    | Record<string, { realTime: number; cpuTime: number }>
-    | undefined = await getCpuTimes(
-    vmafs.map((vmaf) => path.resolve(directoryWithVmafFiles, vmaf.filename))
-  );
   vmafs.forEach(({ filename, vmaf }) => {
     const [resolutionStr, bitrateStr] = filename.split('_');
     const [widthStr, heightStr] = resolutionStr.split('x');
@@ -48,19 +42,17 @@ export async function pairVmafWithResolutionAndBitrate(
     const width = parseInt(widthStr);
     const height = parseInt(heightStr);
     const bitrate = bitrates ? bitrates[filename] : parseInt(bitrateStr);
-    const cpuTime = cpuTimes ? cpuTimes[filename] : undefined;
 
     if (filterFunction(bitrate, { width, height }, vmaf)) {
       if (pairs.has(bitrate)) {
         pairs.get(bitrate)?.push({
           resolution: { width, height },
           vmaf,
-          cpuTime,
           vmafFile: filename
         });
       } else {
         pairs.set(bitrate, [
-          { resolution: { width, height }, vmaf, cpuTime, vmafFile: filename }
+          { resolution: { width, height }, vmaf, vmafFile: filename }
         ]);
       }
     }
@@ -69,42 +61,6 @@ export async function pairVmafWithResolutionAndBitrate(
     counter += 1;
   });
   return pairs;
-}
-
-async function getCpuTimes(vmafFiles: string[]) {
-  const cpuTimes: Record<string, { realTime: number; cpuTime: number }> = {};
-  for (const filename of vmafFiles) {
-    cpuTimes[path.basename(filename)] = await getCpuTime(filename);
-  }
-  return cpuTimes;
-}
-
-async function getCpuTime(file: string) {
-  let timeFile = file.replace('_vmaf.json', '.mp4.pass1-cpu-time.txt');
-  if (!fileExists(timeFile)) {
-    // Look in parent folder
-    timeFile = path.resolve(
-      path.dirname(timeFile),
-      `../${path.basename(timeFile)}`
-    );
-  }
-  if (!fileExists(timeFile)) {
-    throw new Error(
-      `Unable to find corresponding cpu-time file: ${timeFile} for vmaf file: ${file}`
-    );
-  }
-
-  const metadata = JSON.parse(fs.readFileSync(timeFile, 'utf8'));
-  const realTime = metadata.realTime as number;
-  const cpuUserMode = metadata.cpuUserMode as number;
-  const cpuKernelMode = metadata.cpuKernelMode as number;
-  console.log(
-    `Got time data realTime: ${realTime}, cpuUserMode: ${cpuUserMode}, cpuKernelMode: ${cpuKernelMode} from file ${timeFile}`
-  );
-  return {
-    realTime,
-    cpuTime: parseFloat((cpuUserMode + cpuKernelMode).toFixed(2))
-  };
 }
 
 async function getBitrates(

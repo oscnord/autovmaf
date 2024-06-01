@@ -144,9 +144,7 @@ async function exportWmafResultToCsv(argv) {
       filename: resolutionVmaf.vmafFile,
       resolution: `${resolutionVmaf.resolution.width}X${resolutionVmaf.resolution.height}`,
       vmaf: resolutionVmaf.vmaf,
-      bitrate: result[0],
-      realTime: resolutionVmaf.cpuTime?.realTime,
-      cpuTime: resolutionVmaf.cpuTime?.cpuTime
+      bitrate: result[0]
     }));
   });
 
